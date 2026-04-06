@@ -83,7 +83,7 @@ final class SmartShuntParserTests: XCTestCase {
             stateOfCharge: 50.0
         )
 
-        XCTAssertEqual(reading.batteryPowerWatts, -125.0, accuracy: 0.1)
+        XCTAssertEqual(reading.batteryPowerWatts!, -125.0, accuracy: 0.1)
     }
 
     func testTooShortData() {
