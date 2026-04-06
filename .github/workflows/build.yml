@@ -43,15 +43,10 @@ jobs:
 
       - name: Run Tests
         run: |
-          # List available simulators for debugging
-          xcrun simctl list devices available | grep iPhone | head -5
-          # Use the first available iPhone simulator
-          DEST=$(xcrun simctl list devices available | grep iPhone | head -1 | sed 's/^[[:space:]]*//' | sed 's/ (.*//')
-          echo "Using simulator: $DEST"
           xcodebuild test \
             -project Victronator.xcodeproj \
             -scheme VictronatorTests \
-            -destination "platform=iOS Simulator,name=$DEST" \
+            -destination "platform=iOS Simulator,name=iPhone 15,OS=17.2" \
             -configuration Debug
 
   deploy:
