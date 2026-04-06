@@ -66,6 +66,7 @@ struct VictronDecryptor {
         defer { CCCryptorRelease(c) }
 
         var bytesWritten = 0
+        let outputCount = output.count
         let updateStatus = input.withUnsafeBytes { inputBytes in
             output.withUnsafeMutableBytes { outputBytes in
                 CCCryptorUpdate(
@@ -73,7 +74,7 @@ struct VictronDecryptor {
                     inputBytes.baseAddress,
                     input.count,
                     outputBytes.baseAddress,
-                    output.count,
+                    outputCount,
                     &bytesWritten
                 )
             }
