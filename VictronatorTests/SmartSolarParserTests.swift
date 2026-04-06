@@ -37,11 +37,11 @@ final class SmartSolarParserTests: XCTestCase {
         XCTAssertNotNil(reading)
         XCTAssertEqual(reading?.chargeState, 3)
         XCTAssertEqual(reading?.chargerError, 0)
-        XCTAssertEqual(reading?.batteryVoltage, 13.80, accuracy: 0.01)
-        XCTAssertEqual(reading?.batteryChargingCurrent, 5.2, accuracy: 0.1)
-        XCTAssertEqual(reading?.yieldToday, 3400.0, accuracy: 0.1)
+        XCTAssertEqual(reading!.batteryVoltage!, 13.80, accuracy: 0.01)
+        XCTAssertEqual(reading!.batteryChargingCurrent!, 5.2, accuracy: 0.1)
+        XCTAssertEqual(reading!.yieldToday!, 3400.0, accuracy: 0.1)
         XCTAssertEqual(reading?.solarPower, 280)
-        XCTAssertEqual(reading?.externalDeviceLoad, 1.5, accuracy: 0.1)
+        XCTAssertEqual(reading!.externalDeviceLoad!, 1.5, accuracy: 0.1)
         XCTAssertEqual(reading?.chargeStateDescription, "Bulk")
     }
 

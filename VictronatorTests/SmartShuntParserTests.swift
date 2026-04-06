@@ -45,10 +45,10 @@ final class SmartShuntParserTests: XCTestCase {
 
         XCTAssertNotNil(reading)
         XCTAssertEqual(reading?.timeToGo, 120)
-        XCTAssertEqual(reading?.batteryVoltage, 12.54, accuracy: 0.01)
-        XCTAssertEqual(reading?.batteryCurrent, -5.23, accuracy: 0.001)
-        XCTAssertEqual(reading?.consumedAh, -15.0, accuracy: 0.1)
-        XCTAssertEqual(reading?.stateOfCharge, 85.0, accuracy: 0.1)
+        XCTAssertEqual(reading!.batteryVoltage!, 12.54, accuracy: 0.01)
+        XCTAssertEqual(reading!.batteryCurrent!, -5.23, accuracy: 0.001)
+        XCTAssertEqual(reading!.consumedAh!, -15.0, accuracy: 0.1)
+        XCTAssertEqual(reading!.stateOfCharge!, 85.0, accuracy: 0.1)
         XCTAssertEqual(reading?.auxInputType, 3)
     }
 
