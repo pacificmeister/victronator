@@ -79,15 +79,10 @@ struct DeviceRow: View {
         }
     }
 
-    @ViewBuilder
     private func signalIcon(rssi: Int) -> some View {
-        let bars: Int
-        if rssi > -50 { bars = 3 }
-        else if rssi > -70 { bars = 2 }
-        else if rssi > -90 { bars = 1 }
-        else { bars = 0 }
-
-        Image(systemName: "wifi", variableValue: Double(bars) / 3.0)
-            .foregroundColor(bars >= 2 ? .green : bars == 1 ? .yellow : .red)
+        let bars = rssi > -50 ? 3 : rssi > -70 ? 2 : rssi > -90 ? 1 : 0
+        let color: Color = bars >= 2 ? .green : bars == 1 ? .yellow : .red
+        return Image(systemName: "wifi", variableValue: Double(bars) / 3.0)
+            .foregroundColor(color)
     }
 }

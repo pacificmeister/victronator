@@ -28,7 +28,6 @@ struct StatusBannerView: View {
             if deviceManager.scanner.isScanning {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .foregroundColor(.green)
-                    .symbolEffect(.variableColor.iterative)
             } else {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .foregroundColor(.yellow)
