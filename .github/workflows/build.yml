@@ -115,7 +115,16 @@ jobs:
           <plist version="1.0">
           <dict>
               <key>method</key>
-              <string>app-store</string>
+              <string>app-store-connect</string>
+              <key>teamID</key>
+              <string>HW6C649LHW</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.victronator.app</key>
+                  <string>Victronator App Store</string>
+              </dict>
               <key>uploadSymbols</key>
               <true/>
               <key>destination</key>
