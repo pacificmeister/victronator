@@ -115,7 +115,7 @@ jobs:
           <plist version="1.0">
           <dict>
               <key>method</key>
-              <string>app-store-connect</string>
+              <string>app-store</string>
               <key>teamID</key>
               <string>HW6C649LHW</string>
               <key>signingStyle</key>
@@ -127,8 +127,6 @@ jobs:
               </dict>
               <key>uploadSymbols</key>
               <true/>
-              <key>destination</key>
-              <string>upload</string>
           </dict>
           </plist>
           PLIST
