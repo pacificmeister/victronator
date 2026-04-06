@@ -67,6 +67,14 @@ class DeviceManager: ObservableObject {
                 metrics.yieldToday = reading.yieldToday
             }
 
+        case .inverter:
+            if let reading = InverterParser.parse(data: decrypted) {
+                device.lastReading = .inverter(reading)
+                metrics.inverterPowerVA = reading.acApparentPower.map(Double.init)
+                metrics.acVoltage = reading.acVoltage
+                metrics.inverterState = reading.deviceStateDescription
+            }
+
         default:
             break // Unsupported device type
         }

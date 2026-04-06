@@ -88,6 +88,20 @@ struct DeviceKeyEntryView: View {
                         if let y = r.yieldToday {
                             InfoRow("Yield Today", "\(String(format: "%.0f", y)) Wh")
                         }
+                    case .inverter(let r):
+                        InfoRow("State", r.deviceStateDescription)
+                        if let va = r.acApparentPower {
+                            InfoRow("AC Power", "\(va) VA")
+                        }
+                        if let v = r.acVoltage {
+                            InfoRow("AC Voltage", "\(String(format: "%.1f", v)) V")
+                        }
+                        if let a = r.acCurrent {
+                            InfoRow("AC Current", "\(String(format: "%.1f", a)) A")
+                        }
+                        if let v = r.batteryVoltage {
+                            InfoRow("Battery", "\(String(format: "%.2f", v)) V")
+                        }
                     }
                 }
             }

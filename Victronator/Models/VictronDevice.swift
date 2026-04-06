@@ -41,4 +41,5 @@ class VictronDevice: Identifiable, ObservableObject {
 enum DeviceReading {
     case smartShunt(SmartShuntReading)
     case smartSolar(SmartSolarReading)
+    case inverter(InverterReading)
 }

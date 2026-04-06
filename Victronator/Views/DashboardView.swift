@@ -54,6 +54,18 @@ struct DashboardView: View {
                             color: batteryColor(deviceManager.metrics.batteryPowerWatts),
                             subtitle: batteryDirection(deviceManager.metrics.batteryPowerWatts)
                         )
+
+                        // Inverter / AC Power (only show if inverter is detected)
+                        if deviceManager.metrics.inverterPowerVA != nil {
+                            MetricCardView(
+                                title: "Inverter",
+                                value: formatPower(deviceManager.metrics.inverterPowerVA),
+                                unit: "VA",
+                                icon: "bolt.circle.fill",
+                                color: .blue,
+                                subtitle: formatACInfo(deviceManager.metrics)
+                            )
+                        }
                     }
                     .padding(.horizontal)
                 }
@@ -85,6 +97,13 @@ struct DashboardView: View {
     private func formatVoltage(_ volts: Double?) -> String {
         guard let volts = volts else { return nil ?? "" }
         return String(format: "%.1f V", volts)
+    }
+
+    private func formatACInfo(_ m: DashboardMetrics) -> String {
+        var parts: [String] = []
+        if let v = m.acVoltage { parts.append(String(format: "%.0f V", v)) }
+        if let state = m.inverterState { parts.append(state) }
+        return parts.joined(separator: " · ")
     }
 
     private func formatYield(_ wh: Double?) -> String {
