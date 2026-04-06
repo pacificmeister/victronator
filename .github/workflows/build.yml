@@ -100,12 +100,15 @@ jobs:
 
       - name: Build Archive
         run: |
+          # Use GitHub run number as build number to auto-increment
+          BUILD_NUMBER=${{ github.run_number }}
           xcodebuild archive \
             -project Victronator.xcodeproj \
             -scheme Victronator \
             -destination "${{ env.DESTINATION }}" \
             -configuration Release \
-            -archivePath $RUNNER_TEMP/Victronator.xcarchive
+            -archivePath $RUNNER_TEMP/Victronator.xcarchive \
+            CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
       - name: Export IPA
         run: |

@@ -7,7 +7,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Victronator scans for Victron Energy device BLE advertisements to display solar and battery metrics.</string>
 	<key>UIBackgroundModes</key>
