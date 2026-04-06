@@ -4,8 +4,8 @@ struct DashboardView: View {
     @EnvironmentObject var deviceManager: DeviceManager
 
     private let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
     ]
 
     var body: some View {
@@ -14,8 +14,15 @@ struct DashboardView: View {
                 VStack(spacing: 16) {
                     StatusBannerView()
 
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        // State of Charge
+                    // Energy Flow Diagram
+                    EnergyFlowView(
+                        metrics: deviceManager.metrics,
+                        isShoreDetected: deviceManager.dataHistory.isShoreDetected
+                    )
+                    .padding(.horizontal)
+
+                    // Key Metrics Grid
+                    LazyVGrid(columns: columns, spacing: 12) {
                         MetricCardView(
                             title: "State of Charge",
                             value: formatSOC(deviceManager.metrics.stateOfCharge),
@@ -25,9 +32,8 @@ struct DashboardView: View {
                             subtitle: formatVoltage(deviceManager.metrics.batteryVoltage)
                         )
 
-                        // Solar Power
                         MetricCardView(
-                            title: "Solar Power",
+                            title: "Solar",
                             value: formatPower(deviceManager.metrics.solarPowerWatts),
                             unit: "W",
                             icon: "sun.max.fill",
@@ -35,17 +41,6 @@ struct DashboardView: View {
                             subtitle: deviceManager.metrics.chargeState
                         )
 
-                        // Consumer Power
-                        MetricCardView(
-                            title: "Consumers",
-                            value: formatPower(deviceManager.metrics.consumerPowerWatts),
-                            unit: "W",
-                            icon: "powerplug.fill",
-                            color: .purple,
-                            subtitle: formatYield(deviceManager.metrics.yieldToday)
-                        )
-
-                        // Battery Power
                         MetricCardView(
                             title: "Battery",
                             value: formatBatteryPower(deviceManager.metrics.batteryPowerWatts),
@@ -55,7 +50,16 @@ struct DashboardView: View {
                             subtitle: batteryDirection(deviceManager.metrics.batteryPowerWatts)
                         )
 
-                        // Inverter / AC Power (only show if inverter is detected)
+                        MetricCardView(
+                            title: deviceManager.dataHistory.isShoreDetected ? "Loads + Shore" : "Consumers",
+                            value: formatPower(deviceManager.metrics.consumerPowerWatts ?? deviceManager.metrics.inverterPowerVA),
+                            unit: "W",
+                            icon: deviceManager.dataHistory.isShoreDetected ? "powerplug.fill" : "house.fill",
+                            color: deviceManager.dataHistory.isShoreDetected ? .cyan : .purple,
+                            subtitle: formatYield(deviceManager.metrics.yieldToday)
+                        )
+
+                        // Inverter card (only when detected)
                         if deviceManager.metrics.inverterPowerVA != nil {
                             MetricCardView(
                                 title: "Inverter",
@@ -68,9 +72,17 @@ struct DashboardView: View {
                         }
                     }
                     .padding(.horizontal)
+
+                    // 24-Hour History Chart
+                    if !deviceManager.dataHistory.points.isEmpty {
+                        ChartView(points: deviceManager.dataHistory.points)
+                            .padding(.horizontal)
+                    }
+
+                    Spacer(minLength: 20)
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.black.ignoresSafeArea())
             .navigationTitle("Victronator")
         }
         .navigationViewStyle(.stack)
@@ -95,19 +107,19 @@ struct DashboardView: View {
     }
 
     private func formatVoltage(_ volts: Double?) -> String {
-        guard let volts = volts else { return nil ?? "" }
+        guard let volts = volts else { return "" }
         return String(format: "%.1f V", volts)
     }
 
     private func formatACInfo(_ m: DashboardMetrics) -> String {
         var parts: [String] = []
-        if let v = m.acVoltage { parts.append(String(format: "%.0f V", v)) }
+        if let v = m.acVoltage { parts.append(String(format: "%.0f V AC", v)) }
         if let state = m.inverterState { parts.append(state) }
         return parts.joined(separator: " · ")
     }
 
     private func formatYield(_ wh: Double?) -> String {
-        guard let wh = wh else { return nil ?? "" }
+        guard let wh = wh else { return "" }
         if wh >= 1000 {
             return String(format: "%.1f kWh today", wh / 1000)
         }

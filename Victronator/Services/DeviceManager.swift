@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Combine
 
 /// Orchestrates BLE scanning, decryption, parsing, and dashboard metrics.
@@ -10,6 +11,7 @@ class DeviceManager: ObservableObject {
 
     let scanner = BLEScanner()
     let keyStore = KeyStore.shared
+    let dataHistory = DataHistory()
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -19,6 +21,11 @@ class DeviceManager: ObservableObject {
             .sink { [weak self] advertisement, rssi in
                 self?.processAdvertisement(advertisement, rssi: rssi)
             }
+            .store(in: &cancellables)
+
+        // Save history when app goes to background
+        NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)
+            .sink { [weak self] _ in self?.dataHistory.save() }
             .store(in: &cancellables)
     }
 
@@ -80,6 +87,7 @@ class DeviceManager: ObservableObject {
         }
 
         lastUpdateTime = Date()
+        dataHistory.record(metrics: metrics)
         objectWillChange.send()
     }
 
