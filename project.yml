@@ -39,6 +39,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.victronator.app
         INFOPLIST_FILE: Victronator/Info.plist
+        DEVELOPMENT_TEAM: HW6C649LHW
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Apple Distribution"
+        PROVISIONING_PROFILE_SPECIFIER: "Victronator App Store"
 
   VictronatorTests:
     type: bundle.unit-test
