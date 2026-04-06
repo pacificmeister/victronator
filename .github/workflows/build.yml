@@ -102,6 +102,9 @@ jobs:
         run: |
           # Use GitHub run number as build number to auto-increment
           BUILD_NUMBER=${{ github.run_number }}
+          # Update Info.plist with the build number
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" Victronator/Info.plist
+          echo "Build number set to $BUILD_NUMBER"
           xcodebuild archive \
             -project Victronator.xcodeproj \
             -scheme Victronator \
