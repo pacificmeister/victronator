@@ -12,7 +12,7 @@ struct StatusBannerView: View {
                 .foregroundColor(.secondary)
             Spacer()
             if let time = deviceManager.lastUpdateTime {
-                Text("Updated \(time, style: .relative) ago")
+                Text("Updated \(timeAgo(time))")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -39,6 +39,13 @@ struct StatusBannerView: View {
             Image(systemName: "questionmark.circle")
                 .foregroundColor(.gray)
         }
+    }
+
+    private func timeAgo(_ date: Date) -> String {
+        let seconds = Int(-date.timeIntervalSinceNow)
+        if seconds < 5 { return "just now" }
+        if seconds < 60 { return "\(seconds)s ago" }
+        return "\(seconds / 60)m ago"
     }
 
     private var statusText: String {

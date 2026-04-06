@@ -9,17 +9,16 @@ struct DeviceKeyEntryView: View {
 
     var body: some View {
         Form {
-            Section("Device Info") {
-                LabeledContent("Type", value: device.deviceTypeName)
-                LabeledContent("Model ID", value: "0x\(String(format: "%04X", device.modelId))")
-                LabeledContent("Signal", value: "\(device.rssi) dBm")
-                LabeledContent("Last Seen", value: device.lastSeen, format: .relative(presentation: .named))
+            Section(header: Text("Device Info")) {
+                InfoRow("Type", device.deviceTypeName)
+                InfoRow("Model ID", "0x\(String(format: "%04X", device.modelId))")
+                InfoRow("Signal", "\(device.rssi) dBm")
             }
 
-            Section("Encryption Key") {
+            Section(header: Text("Encryption Key")) {
                 TextField("Enter 32-character hex key", text: $keyInput)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
                     .font(.system(.body, design: .monospaced))
                     .onChange(of: keyInput) { _ in
                         showError = false
@@ -52,40 +51,42 @@ struct DeviceKeyEntryView: View {
 
             if device.hasKey {
                 Section {
-                    Button("Remove Key", role: .destructive) {
+                    Button(role: .destructive) {
                         keyStore.removeKey(for: device.id)
                         keyInput = ""
                         saved = false
+                    } label: {
+                        Text("Remove Key")
                     }
                 }
             }
 
             if let reading = device.lastReading {
-                Section("Latest Reading") {
+                Section(header: Text("Latest Reading")) {
                     switch reading {
                     case .smartShunt(let r):
                         if let soc = r.stateOfCharge {
-                            LabeledContent("SOC", value: "\(String(format: "%.1f", soc))%")
+                            InfoRow("SOC", "\(String(format: "%.1f", soc))%")
                         }
                         if let v = r.batteryVoltage {
-                            LabeledContent("Voltage", value: "\(String(format: "%.2f", v)) V")
+                            InfoRow("Voltage", "\(String(format: "%.2f", v)) V")
                         }
                         if let a = r.batteryCurrent {
-                            LabeledContent("Current", value: "\(String(format: "%.2f", a)) A")
+                            InfoRow("Current", "\(String(format: "%.2f", a)) A")
                         }
                         if let w = r.batteryPowerWatts {
-                            LabeledContent("Power", value: "\(String(format: "%.0f", w)) W")
+                            InfoRow("Power", "\(String(format: "%.0f", w)) W")
                         }
                     case .smartSolar(let r):
                         if let w = r.solarPower {
-                            LabeledContent("Solar Power", value: "\(w) W")
+                            InfoRow("Solar Power", "\(w) W")
                         }
-                        LabeledContent("Charge State", value: r.chargeStateDescription)
+                        InfoRow("Charge State", r.chargeStateDescription)
                         if let v = r.batteryVoltage {
-                            LabeledContent("Battery", value: "\(String(format: "%.2f", v)) V")
+                            InfoRow("Battery", "\(String(format: "%.2f", v)) V")
                         }
                         if let y = r.yieldToday {
-                            LabeledContent("Yield Today", value: "\(String(format: "%.0f", y)) Wh")
+                            InfoRow("Yield Today", "\(String(format: "%.0f", y)) Wh")
                         }
                     }
                 }
@@ -96,6 +97,26 @@ struct DeviceKeyEntryView: View {
             if let hex = keyStore.keys[device.id.uuidString] {
                 keyInput = hex
             }
+        }
+    }
+}
+
+/// Simple label-value row compatible with iOS 15.
+private struct InfoRow: View {
+    let label: String
+    let value: String
+
+    init(_ label: String, _ value: String) {
+        self.label = label
+        self.value = value
+    }
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value)
+                .foregroundColor(.secondary)
         }
     }
 }

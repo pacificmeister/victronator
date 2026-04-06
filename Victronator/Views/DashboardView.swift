@@ -9,7 +9,7 @@ struct DashboardView: View {
     ]
 
     var body: some View {
-        NavigationStack {
+        NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
                     StatusBannerView()
@@ -61,6 +61,7 @@ struct DashboardView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Victronator")
         }
+        .navigationViewStyle(.stack)
     }
 
     // MARK: - Formatters

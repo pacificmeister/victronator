@@ -5,7 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject var keyStore: KeyStore
 
     var body: some View {
-        NavigationStack {
+        NavigationView {
             List {
                 if deviceManager.devices.isEmpty {
                     Section {
@@ -26,9 +26,7 @@ struct SettingsView: View {
                 } else {
                     Section("Discovered Devices") {
                         ForEach(deviceManager.sortedDevices) { device in
-                            NavigationLink {
-                                DeviceKeyEntryView(device: device)
-                            } label: {
+                            NavigationLink(destination: DeviceKeyEntryView(device: device)) {
                                 DeviceRow(device: device)
                             }
                         }
@@ -47,6 +45,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Devices")
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -80,9 +79,13 @@ struct DeviceRow: View {
     }
 
     private func signalIcon(rssi: Int) -> some View {
-        let bars = rssi > -50 ? 3 : rssi > -70 ? 2 : rssi > -90 ? 1 : 0
-        let color: Color = bars >= 2 ? .green : bars == 1 ? .yellow : .red
-        return Image(systemName: "wifi", variableValue: Double(bars) / 3.0)
+        let iconName: String
+        if rssi > -50 { iconName = "wifi" }
+        else if rssi > -70 { iconName = "wifi" }
+        else if rssi > -90 { iconName = "wifi" }
+        else { iconName = "wifi.slash" }
+        let color: Color = rssi > -70 ? .green : rssi > -90 ? .yellow : .red
+        return Image(systemName: iconName)
             .foregroundColor(color)
     }
 }
