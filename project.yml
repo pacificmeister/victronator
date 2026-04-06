@@ -50,3 +50,4 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.victronator.tests
+        GENERATE_INFOPLIST_FILE: YES
