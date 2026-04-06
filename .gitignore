@@ -17,6 +17,9 @@ Packages/
 *~
 
 # Secrets (never commit)
+.signing/
 *.p12
 *.mobileprovision
 *.p8
+*.cer
+*.key
