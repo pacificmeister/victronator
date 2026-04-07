@@ -306,7 +306,7 @@ struct ChartView: View {
     // MARK: - Watt axis auto-scale (includes negative for battery discharge)
 
     private var wattAxisRange: (min: Double, max: Double) {
-        var allMax: Double = 500
+        var allMax: Double = 0
         var allMin: Double = 0
 
         for p in points {
@@ -315,16 +315,21 @@ struct ChartView: View {
             if let mn = vals.min() { allMin = min(allMin, mn) }
         }
 
-        // Round to nice steps
-        let posSteps: [Double] = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000]
-        let negSteps: [Double] = [0, -50, -100, -200, -300, -500, -750, -1000, -1500, -2000, -3000]
+        // Ensure some minimum range
+        if allMax < 50 { allMax = 50 }
 
+        // Round up to nice step for positive max
+        let posSteps: [Double] = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000]
         let niceMax = posSteps.first { $0 >= allMax * 1.1 } ?? allMax * 1.2
+
+        // Round down to nice step for negative min (tightest fit)
         let niceMin: Double
         if allMin >= 0 {
             niceMin = 0
         } else {
-            niceMin = negSteps.last { $0 <= allMin * 1.1 } ?? allMin * 1.2
+            let absMin = abs(allMin) * 1.1
+            let niceAbsMin = posSteps.first { $0 >= absMin } ?? absMin
+            niceMin = -niceAbsMin
         }
 
         return (min: niceMin, max: niceMax)
