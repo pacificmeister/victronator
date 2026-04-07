@@ -245,19 +245,7 @@ struct ArrowLine: View {
                 arrowHead
                     .fill(color.opacity(0.8))
 
-                // Watt label at midpoint
-                Text("\(Int(watts))W")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundColor(color)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule().fill(VTheme.pageBG)
-                    )
-                    .position(
-                        x: (from.x + to.x) / 2 + labelOffset.x,
-                        y: (from.y + to.y) / 2 + labelOffset.y
-                    )
+                // (arrow + line only, no label — values shown in boxes)
             }
         } else {
             // Inactive: thin dashed line, no arrow
@@ -289,12 +277,4 @@ struct ArrowLine: View {
         }
     }
 
-    // Offset label perpendicular to line so it doesn't overlap
-    private var labelOffset: CGPoint {
-        let dx = to.x - from.x
-        let dy = to.y - from.y
-        let len = sqrt(dx * dx + dy * dy)
-        guard len > 0 else { return .zero }
-        return CGPoint(x: -dy / len * 16, y: dx / len * 16)
-    }
 }

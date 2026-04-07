@@ -2,19 +2,28 @@ import SwiftUI
 
 /// 24-hour history chart with dual Y-axes.
 /// Left Y: SOC (fixed 0-100%). Right Y: Watts (auto-scaled).
-/// Gaps where app wasn't running are shaded and lines broken.
+/// X-axis shows real clock times in device timezone.
+/// Gaps where app wasn't running are shaded gray with broken lines.
 struct ChartView: View {
     let points: [DataPoint]
     var chartHeight: CGFloat = 300
+
     private let leftPad: CGFloat = 36
     private let rightPad: CGFloat = 44
-    private let topPad: CGFloat = 8
-    private let bottomPad: CGFloat = 20
-    private let gapThreshold: TimeInterval = 60 // 60s = gap
+    private let topPad: CGFloat = 24  // room for legend
+    private let bottomPad: CGFloat = 24
+    private let gapThreshold: TimeInterval = 60
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        f.timeZone = .current
+        return f
+    }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Legend
+        VStack(alignment: .leading, spacing: 0) {
+            // Legend row
             HStack(spacing: 14) {
                 LegendItem(color: VTheme.green, label: "SOC %")
                 LegendItem(color: VTheme.solarColor, label: "Solar")
@@ -22,96 +31,78 @@ struct ChartView: View {
                 LegendItem(color: VTheme.loadsColor, label: "Loads")
             }
             .font(.system(size: 10))
+            .padding(.bottom, 4)
 
             GeometryReader { geo in
-                let plotW = geo.size.width - leftPad - rightPad
-                let plotH = chartHeight - topPad - bottomPad
+                let totalW = geo.size.width
+                let totalH = geo.size.height
+                let plotW = totalW - leftPad - rightPad
+                let plotH = totalH - bottomPad
                 let wMax = wattAxisMax
 
                 ZStack(alignment: .topLeading) {
-                    // Gap shading
+                    // Gap shading (gray regions where no data)
                     gapRegions(plotW: plotW, plotH: plotH)
-                        .offset(x: leftPad, y: topPad)
+                        .offset(x: leftPad)
+
+                    // Also shade the region before first data point
+                    leadingGap(plotW: plotW, plotH: plotH)
+                        .offset(x: leftPad)
 
                     // Grid lines
                     gridLines(plotW: plotW, plotH: plotH)
-                        .offset(x: leftPad, y: topPad)
+                        .offset(x: leftPad)
 
-                    // SOC line (left Y: 0-100, fixed)
+                    // Data lines
                     segmentedLine(plotW: plotW, plotH: plotH,
                                   valueFor: { $0.soc },
                                   minVal: 0, maxVal: 100,
                                   color: VTheme.green, width: 2.5)
-                        .offset(x: leftPad, y: topPad)
+                        .offset(x: leftPad)
 
-                    // Solar line (right Y: auto-scaled watts)
                     segmentedLine(plotW: plotW, plotH: plotH,
                                   valueFor: { $0.solarWatts },
                                   minVal: 0, maxVal: wMax,
                                   color: VTheme.solarColor, width: 1.5)
-                        .offset(x: leftPad, y: topPad)
+                        .offset(x: leftPad)
 
-                    // Battery line (absolute watts)
                     segmentedLine(plotW: plotW, plotH: plotH,
                                   valueFor: { $0.batteryWatts.map { abs($0) } },
                                   minVal: 0, maxVal: wMax,
                                   color: VTheme.red, width: 1.5)
-                        .offset(x: leftPad, y: topPad)
+                        .offset(x: leftPad)
 
-                    // Loads line
                     segmentedLine(plotW: plotW, plotH: plotH,
                                   valueFor: { $0.consumerWatts },
                                   minVal: 0, maxVal: wMax,
                                   color: VTheme.loadsColor, width: 1.5)
-                        .offset(x: leftPad, y: topPad)
+                        .offset(x: leftPad)
 
                     // Left Y-axis (SOC %)
-                    VStack(alignment: .trailing) {
-                        Text("100").font(.system(size: 8))
-                        Spacer()
-                        Text("75").font(.system(size: 8))
-                        Spacer()
-                        Text("50").font(.system(size: 8))
-                        Spacer()
-                        Text("25").font(.system(size: 8))
-                        Spacer()
-                        Text("0").font(.system(size: 8))
-                    }
-                    .foregroundColor(VTheme.green.opacity(0.6))
-                    .frame(width: leftPad - 6, height: plotH)
-                    .offset(y: topPad)
+                    yAxisLabels(
+                        values: ["100", "75", "50", "25", "0"],
+                        color: VTheme.green.opacity(0.6),
+                        width: leftPad - 6,
+                        height: plotH,
+                        alignment: .trailing
+                    )
 
-                    // Right Y-axis (Watts, auto-scaled)
-                    VStack(alignment: .leading) {
-                        Text(formatAxisW(wMax)).font(.system(size: 8))
-                        Spacer()
-                        Text(formatAxisW(wMax * 0.5)).font(.system(size: 8))
-                        Spacer()
-                        Text("0").font(.system(size: 8))
-                    }
-                    .foregroundColor(VTheme.solarColor.opacity(0.6))
-                    .frame(width: rightPad - 6, height: plotH)
-                    .offset(x: leftPad + plotW + 6, y: topPad)
+                    // Right Y-axis (Watts)
+                    yAxisLabels(
+                        values: [formatAxisW(wMax), formatAxisW(wMax * 0.5), "0"],
+                        color: VTheme.solarColor.opacity(0.6),
+                        width: rightPad - 6,
+                        height: plotH,
+                        alignment: .leading
+                    )
+                    .offset(x: leftPad + plotW + 6)
 
-                    // Time axis
-                    HStack {
-                        Text("-24h")
-                        Spacer()
-                        Text("-18h")
-                        Spacer()
-                        Text("-12h")
-                        Spacer()
-                        Text("-6h")
-                        Spacer()
-                        Text("Now")
-                    }
-                    .font(.system(size: 8))
-                    .foregroundColor(VTheme.gray5)
-                    .frame(width: plotW)
-                    .offset(x: leftPad, y: topPad + plotH + 4)
+                    // X-axis: real clock times
+                    timeAxis(plotW: plotW)
+                        .offset(x: leftPad, y: plotH + 4)
                 }
             }
-            .frame(height: chartHeight)
+            .frame(height: chartHeight - 24) // minus legend height
         }
         .padding(12)
         .background(
@@ -122,6 +113,47 @@ struct ChartView: View {
                         .stroke(VTheme.blue.opacity(0.2), lineWidth: 1)
                 )
         )
+    }
+
+    // MARK: - X-axis with real clock times
+
+    private func timeAxis(plotW: CGFloat) -> some View {
+        let now = Date()
+        let window: TimeInterval = 24 * 60 * 60
+
+        // Generate labels at 3-hour intervals
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: now)
+
+        // Find the most recent 3-hour mark
+        let lastMark = currentHour - (currentHour % 3)
+        var labels: [(String, CGFloat)] = []
+
+        for i in 0..<9 { // 0, 3, 6, ... 24 hours back
+            let hoursBack = i * 3
+            let markHour = (lastMark - hoursBack + 48) % 24
+            let age = TimeInterval(currentHour - lastMark + hoursBack) * 3600
+                + TimeInterval(calendar.component(.minute, from: now)) * 60
+
+            let x = (1 - age / window) * Double(plotW)
+            guard x >= 0 && x <= Double(plotW) else { continue }
+
+            let label = String(format: "%02d:00", markHour)
+            labels.append((label, CGFloat(x)))
+        }
+
+        // Always add "Now" at the right edge
+        labels.append(("Now", plotW))
+
+        return ZStack(alignment: .leading) {
+            ForEach(Array(labels.enumerated()), id: \.offset) { _, item in
+                Text(item.0)
+                    .font(.system(size: 8))
+                    .foregroundColor(VTheme.gray5)
+                    .position(x: item.1, y: 8)
+            }
+        }
+        .frame(width: plotW, height: 16)
     }
 
     // MARK: - Segmented line (breaks at gaps)
@@ -154,7 +186,6 @@ struct ChartView: View {
                     continue
                 }
 
-                // Check for gap
                 let isGap = prevTime != nil && point.timestamp.timeIntervalSince(prevTime!) > gapThreshold
 
                 if !inSegment || isGap {
@@ -171,35 +202,62 @@ struct ChartView: View {
         return path.stroke(color, lineWidth: width)
     }
 
-    // MARK: - Gap regions (shaded)
+    // MARK: - Gap regions (shaded gray)
 
     private func gapRegions(plotW: CGFloat, plotH: CGFloat) -> some View {
         let now = Date()
         let window: TimeInterval = 24 * 60 * 60
-
-        var rects: [(CGFloat, CGFloat)] = [] // (x start, x end)
+        var rects: [(x: CGFloat, w: CGFloat)] = []
         var prevTime: Date? = nil
 
         for point in points {
             if let prev = prevTime, point.timestamp.timeIntervalSince(prev) > gapThreshold {
-                let x1 = (1 - now.timeIntervalSince(prev) / window) * Double(plotW)
-                let x2 = (1 - now.timeIntervalSince(point.timestamp) / window) * Double(plotW)
-                if x1 >= 0 || x2 >= 0 {
-                    rects.append((CGFloat(max(x2, 0)), CGFloat(min(x1, Double(plotW)))))
+                let x1 = CGFloat((1 - now.timeIntervalSince(prev) / window) * Double(plotW))
+                let x2 = CGFloat((1 - now.timeIntervalSince(point.timestamp) / window) * Double(plotW))
+                let left = max(0, min(x1, x2))
+                let right = min(plotW, max(x1, x2))
+                if right > left {
+                    rects.append((x: left, w: right - left))
                 }
             }
             prevTime = point.timestamp
         }
 
-        return ZStack {
+        return ZStack(alignment: .topLeading) {
             ForEach(Array(rects.enumerated()), id: \.offset) { _, rect in
                 Rectangle()
-                    .fill(Color.white.opacity(0.03))
-                    .frame(width: max(0, rect.1 - rect.0), height: plotH)
-                    .offset(x: rect.0 + (rect.1 - rect.0) / 2 - plotW / 2)
+                    .fill(Color.gray.opacity(0.12))
+                    .frame(width: rect.w, height: plotH)
+                    .offset(x: rect.x)
             }
         }
-        .frame(width: plotW, height: plotH)
+        .frame(width: plotW, height: plotH, alignment: .topLeading)
+    }
+
+    /// Shade the region before the first data point (no data existed yet)
+    private func leadingGap(plotW: CGFloat, plotH: CGFloat) -> some View {
+        let now = Date()
+        let window: TimeInterval = 24 * 60 * 60
+
+        guard let first = points.first else {
+            return AnyView(
+                Rectangle()
+                    .fill(Color.gray.opacity(0.08))
+                    .frame(width: plotW, height: plotH)
+            )
+        }
+
+        let age = now.timeIntervalSince(first.timestamp)
+        let x = CGFloat((1 - age / window) * Double(plotW))
+
+        if x > 1 {
+            return AnyView(
+                Rectangle()
+                    .fill(Color.gray.opacity(0.08))
+                    .frame(width: x, height: plotH)
+            )
+        }
+        return AnyView(EmptyView())
     }
 
     // MARK: - Grid
@@ -213,6 +271,21 @@ struct ChartView: View {
             }
         }
         .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
+    }
+
+    // MARK: - Y-axis helper
+
+    private func yAxisLabels(values: [String], color: Color,
+                              width: CGFloat, height: CGFloat,
+                              alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment) {
+            ForEach(Array(values.enumerated()), id: \.offset) { i, val in
+                if i > 0 { Spacer() }
+                Text(val).font(.system(size: 8))
+            }
+        }
+        .foregroundColor(color)
+        .frame(width: width, height: height)
     }
 
     // MARK: - Watt axis auto-scale
