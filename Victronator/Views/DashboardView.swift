@@ -40,8 +40,8 @@ struct DashboardView: View {
             .frame(width: (width - 32) * 0.45)
 
             VStack {
-                if !deviceManager.dataHistory.points.isEmpty {
-                    ChartView(points: deviceManager.dataHistory.points,
+                if !deviceManager.dataHistory.allPoints.isEmpty {
+                    ChartView(dataHistory: deviceManager.dataHistory,
                               chartHeight: height - 16)
                 } else {
                     chartPlaceholder
@@ -68,8 +68,8 @@ struct DashboardView: View {
             )
             .padding(.horizontal)
 
-            if !deviceManager.dataHistory.points.isEmpty {
-                ChartView(points: deviceManager.dataHistory.points,
+            if !deviceManager.dataHistory.allPoints.isEmpty {
+                ChartView(dataHistory: deviceManager.dataHistory,
                           chartHeight: chartH)
                     .padding(.horizontal)
             } else {

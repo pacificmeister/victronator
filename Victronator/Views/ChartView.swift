@@ -1,36 +1,57 @@
 import SwiftUI
 
-/// 24-hour history chart with dual Y-axes.
-/// Left Y: SOC (fixed 0-100%). Right Y: Watts (auto-scaled).
+/// 24-hour history chart with dual Y-axes and time range selector.
+/// Left Y: SOC (fixed 0-100%). Right Y: Watts (auto-scaled with negatives).
 /// X-axis shows real clock times in device timezone.
-/// Gaps where app wasn't running are shaded gray with broken lines.
+/// Range buttons: 1h, 12h, 24h, 1w
 struct ChartView: View {
-    let points: [DataPoint]
+    @ObservedObject var dataHistory: DataHistory
     var chartHeight: CGFloat = 300
+
+    @State private var selectedRange: ChartRange = .hour24
 
     private let leftPad: CGFloat = 36
     private let rightPad: CGFloat = 44
-    private let topPad: CGFloat = 24  // room for legend
+    private let topPad: CGFloat = 4
     private let bottomPad: CGFloat = 24
     private let gapThreshold: TimeInterval = 60
 
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        f.timeZone = .current
-        return f
-    }()
+    private var points: [DataPoint] {
+        dataHistory.points(for: selectedRange)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Legend row
-            HStack(spacing: 14) {
-                LegendItem(color: VTheme.green, label: "SOC %")
-                LegendItem(color: VTheme.solarColor, label: "Solar")
-                LegendItem(color: VTheme.red, label: "Battery")
-                LegendItem(color: VTheme.loadsColor, label: "Loads")
+            // Top row: legend + range selector
+            HStack {
+                HStack(spacing: 12) {
+                    LegendItem(color: VTheme.green, label: "SOC %")
+                    LegendItem(color: VTheme.solarColor, label: "Solar")
+                    LegendItem(color: VTheme.red, label: "Battery")
+                    LegendItem(color: VTheme.loadsColor, label: "Loads")
+                }
+                .font(.system(size: 10))
+
+                Spacer()
+
+                // Range selector buttons
+                HStack(spacing: 2) {
+                    ForEach(ChartRange.allCases, id: \.self) { range in
+                        Button(action: { selectedRange = range }) {
+                            Text(range.rawValue)
+                                .font(.system(size: 10, weight: selectedRange == range ? .bold : .regular))
+                                .foregroundColor(selectedRange == range ? .white : VTheme.gray5)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(selectedRange == range ? VTheme.blue.opacity(0.5) : Color.clear)
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
             }
-            .font(.system(size: 10))
             .padding(.bottom, 4)
 
             GeometryReader { geo in
@@ -38,18 +59,17 @@ struct ChartView: View {
                 let totalH = geo.size.height
                 let plotW = totalW - leftPad - rightPad
                 let plotH = totalH - bottomPad
-                let wRange = wattAxisRange // (min, max)
+                let wRange = wattAxisRange
 
                 ZStack(alignment: .topLeading) {
-                    // Gap shading (gray regions where no data)
+                    // Gap shading
                     gapRegions(plotW: plotW, plotH: plotH)
                         .offset(x: leftPad)
 
-                    // Also shade the region before first data point
                     leadingGap(plotW: plotW, plotH: plotH)
                         .offset(x: leftPad)
 
-                    // Grid lines + zero line
+                    // Grid + zero line
                     gridLines(plotW: plotW, plotH: plotH, wMin: wRange.min, wMax: wRange.max)
                         .offset(x: leftPad)
 
@@ -66,7 +86,6 @@ struct ChartView: View {
                                   color: VTheme.solarColor, width: 1.5)
                         .offset(x: leftPad)
 
-                    // Battery: signed watts (negative = discharging)
                     segmentedLine(plotW: plotW, plotH: plotH,
                                   valueFor: { $0.batteryWatts },
                                   minVal: wRange.min, maxVal: wRange.max,
@@ -88,7 +107,7 @@ struct ChartView: View {
                         alignment: .trailing
                     )
 
-                    // Right Y-axis (Watts, includes negative)
+                    // Right Y-axis (Watts)
                     yAxisLabels(
                         values: wAxisLabels(wRange),
                         color: VTheme.solarColor.opacity(0.6),
@@ -103,7 +122,7 @@ struct ChartView: View {
                         .offset(x: leftPad, y: plotH + 4)
                 }
             }
-            .frame(height: chartHeight - 24) // minus legend height
+            .frame(height: chartHeight - 28) // minus legend/button row
         }
         .padding(12)
         .background(
@@ -120,31 +139,61 @@ struct ChartView: View {
 
     private func timeAxis(plotW: CGFloat) -> some View {
         let now = Date()
-        let window: TimeInterval = 24 * 60 * 60
-
-        // Generate labels at 3-hour intervals
+        let window = selectedRange.seconds
         let calendar = Calendar.current
-        let currentHour = calendar.component(.hour, from: now)
 
-        // Find the most recent 3-hour mark
-        let lastMark = currentHour - (currentHour % 3)
-        var labels: [(String, CGFloat)] = []
-
-        for i in 0..<9 { // 0, 3, 6, ... 24 hours back
-            let hoursBack = i * 3
-            let markHour = (lastMark - hoursBack + 48) % 24
-            let age = TimeInterval(currentHour - lastMark + hoursBack) * 3600
-                + TimeInterval(calendar.component(.minute, from: now)) * 60
-
-            let x = (1 - age / window) * Double(plotW)
-            guard x >= 0 && x <= Double(plotW) else { continue }
-
-            let label = String(format: "%02d:00", markHour)
-            labels.append((label, CGFloat(x)))
+        // Choose label interval based on range
+        let hourInterval: Int
+        let labelFormat: String
+        switch selectedRange {
+        case .hour1:
+            hourInterval = 0 // use 15-min marks
+            labelFormat = "HH:mm"
+        case .hour12:
+            hourInterval = 2
+            labelFormat = "HH:mm"
+        case .hour24:
+            hourInterval = 3
+            labelFormat = "HH:mm"
+        case .week1:
+            hourInterval = 24
+            labelFormat = "EEE"
         }
 
-        // Always add "Now" at the right edge
-        labels.append(("Now", plotW))
+        var labels: [(String, CGFloat)] = []
+        let formatter = DateFormatter()
+        formatter.dateFormat = labelFormat
+        formatter.timeZone = .current
+
+        if hourInterval == 0 {
+            // 15-minute intervals for 1h view
+            let minute = calendar.component(.minute, from: now)
+            let lastQuarter = minute - (minute % 15)
+            for i in 0..<5 {
+                let minsBack = i * 15
+                let totalMinsBack = (minute - lastQuarter) + minsBack
+                let age = TimeInterval(totalMinsBack * 60)
+                    + TimeInterval(calendar.component(.second, from: now))
+                let x = (1 - age / window) * Double(plotW)
+                guard x >= 0 && x <= Double(plotW) else { continue }
+                let markDate = now.addingTimeInterval(-age)
+                labels.append((formatter.string(from: markDate), CGFloat(x)))
+            }
+        } else {
+            let currentHour = calendar.component(.hour, from: now)
+            let lastMark = currentHour - (currentHour % hourInterval)
+            let maxSteps = Int(window / Double(hourInterval * 3600)) + 1
+
+            for i in 0..<maxSteps {
+                let hoursBack = i * hourInterval
+                let age = TimeInterval(currentHour - lastMark + hoursBack) * 3600
+                    + TimeInterval(calendar.component(.minute, from: now)) * 60
+                let x = (1 - age / window) * Double(plotW)
+                guard x >= 0 && x <= Double(plotW) else { continue }
+                let markDate = now.addingTimeInterval(-age)
+                labels.append((formatter.string(from: markDate), CGFloat(x)))
+            }
+        }
 
         return ZStack(alignment: .leading) {
             ForEach(Array(labels.enumerated()), id: \.offset) { _, item in
@@ -165,7 +214,7 @@ struct ChartView: View {
                                 color: Color, width: CGFloat) -> some View {
         let range = maxVal - minVal
         let now = Date()
-        let window: TimeInterval = 24 * 60 * 60
+        let window = selectedRange.seconds
 
         let path = Path { path in
             var prevTime: Date? = nil
@@ -203,11 +252,11 @@ struct ChartView: View {
         return path.stroke(color, lineWidth: width)
     }
 
-    // MARK: - Gap regions (shaded gray)
+    // MARK: - Gap regions
 
     private func gapRegions(plotW: CGFloat, plotH: CGFloat) -> some View {
         let now = Date()
-        let window: TimeInterval = 24 * 60 * 60
+        let window = selectedRange.seconds
         var rects: [(x: CGFloat, w: CGFloat)] = []
         var prevTime: Date? = nil
 
@@ -235,15 +284,13 @@ struct ChartView: View {
         .frame(width: plotW, height: plotH, alignment: .topLeading)
     }
 
-    /// Shade the region before the first data point (no data existed yet)
     private func leadingGap(plotW: CGFloat, plotH: CGFloat) -> some View {
         let now = Date()
-        let window: TimeInterval = 24 * 60 * 60
+        let window = selectedRange.seconds
 
         guard let first = points.first else {
             return AnyView(
-                Rectangle()
-                    .fill(Color.gray.opacity(0.08))
+                Rectangle().fill(Color.gray.opacity(0.08))
                     .frame(width: plotW, height: plotH)
             )
         }
@@ -253,20 +300,18 @@ struct ChartView: View {
 
         if x > 1 {
             return AnyView(
-                Rectangle()
-                    .fill(Color.gray.opacity(0.08))
+                Rectangle().fill(Color.gray.opacity(0.08))
                     .frame(width: x, height: plotH)
             )
         }
         return AnyView(EmptyView())
     }
 
-    // MARK: - Grid (with zero line when axis includes negatives)
+    // MARK: - Grid
 
     private func gridLines(plotW: CGFloat, plotH: CGFloat, wMin: Double, wMax: Double) -> some View {
         let range = wMax - wMin
         return ZStack {
-            // Standard grid at 25/50/75%
             Path { path in
                 for frac in [0.25, 0.5, 0.75] {
                     let y = plotH * CGFloat(frac)
@@ -276,7 +321,6 @@ struct ChartView: View {
             }
             .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
 
-            // Zero line (if axis spans negative to positive)
             if wMin < 0 && range > 0 {
                 let zeroY = CGFloat((1 - (0 - wMin) / range)) * plotH
                 Path { path in
@@ -303,7 +347,7 @@ struct ChartView: View {
         .frame(width: width, height: height)
     }
 
-    // MARK: - Watt axis auto-scale (includes negative for battery discharge)
+    // MARK: - Watt axis auto-scale
 
     private var wattAxisRange: (min: Double, max: Double) {
         var allMax: Double = 0
@@ -315,21 +359,17 @@ struct ChartView: View {
             if let mn = vals.min() { allMin = min(allMin, mn) }
         }
 
-        // Ensure some minimum range
         if allMax < 50 { allMax = 50 }
 
-        // Round up to nice step for positive max
         let posSteps: [Double] = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000]
         let niceMax = posSteps.first { $0 >= allMax * 1.1 } ?? allMax * 1.2
 
-        // Round down to nice step for negative min (tightest fit)
         let niceMin: Double
         if allMin >= 0 {
             niceMin = 0
         } else {
             let absMin = abs(allMin) * 1.1
-            let niceAbsMin = posSteps.first { $0 >= absMin } ?? absMin
-            niceMin = -niceAbsMin
+            niceMin = -(posSteps.first { $0 >= absMin } ?? absMin)
         }
 
         return (min: niceMin, max: niceMax)
@@ -339,7 +379,6 @@ struct ChartView: View {
         if range.min >= 0 {
             return [formatAxisW(range.max), formatAxisW(range.max * 0.5), "0"]
         }
-        // Has negative: show max, 0, min
         let mid = formatAxisW((range.max + range.min) / 2)
         return [formatAxisW(range.max), mid, formatAxisW(range.min)]
     }
