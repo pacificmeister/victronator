@@ -5,8 +5,7 @@ import SwiftUI
 /// Gaps where app wasn't running are shaded and lines broken.
 struct ChartView: View {
     let points: [DataPoint]
-
-    private let chartHeight: CGFloat = 300
+    var chartHeight: CGFloat = 300
     private let leftPad: CGFloat = 36
     private let rightPad: CGFloat = 44
     private let topPad: CGFloat = 8

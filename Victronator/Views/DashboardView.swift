@@ -9,11 +9,14 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationView {
-            Group {
+            GeometryReader { geo in
+                let safeH = geo.size.height
+                let safeW = geo.size.width
+
                 if isLandscape {
-                    landscapeLayout
+                    landscapeLayout(width: safeW, height: safeH)
                 } else {
-                    portraitLayout
+                    portraitLayout(width: safeW, height: safeH)
                 }
             }
             .background(VTheme.pageBG.ignoresSafeArea())
@@ -23,43 +26,55 @@ struct DashboardView: View {
         .navigationViewStyle(.stack)
     }
 
-    private var landscapeLayout: some View {
+    // MARK: - Landscape: flow left, chart right, full height
+
+    private func landscapeLayout(width: CGFloat, height: CGFloat) -> some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(spacing: 8) {
                 StatusBannerView()
-                EnergyFlowView(metrics: deviceManager.metrics)
+                EnergyFlowView(
+                    metrics: deviceManager.metrics,
+                    availableHeight: height - 40 // minus status banner
+                )
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: (width - 32) * 0.45)
 
             VStack {
                 if !deviceManager.dataHistory.points.isEmpty {
-                    ChartView(points: deviceManager.dataHistory.points)
+                    ChartView(points: deviceManager.dataHistory.points,
+                              chartHeight: height - 16)
                 } else {
                     chartPlaceholder
                 }
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
     }
 
-    private var portraitLayout: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                StatusBannerView()
+    // MARK: - Portrait: flow on top, chart below, fill screen
 
-                EnergyFlowView(metrics: deviceManager.metrics)
+    private func portraitLayout(width: CGFloat, height: CGFloat) -> some View {
+        let flowH = height * 0.5
+        let chartH = height * 0.42
+
+        return VStack(spacing: 8) {
+            StatusBannerView()
+
+            EnergyFlowView(
+                metrics: deviceManager.metrics,
+                availableHeight: flowH
+            )
+            .padding(.horizontal)
+
+            if !deviceManager.dataHistory.points.isEmpty {
+                ChartView(points: deviceManager.dataHistory.points,
+                          chartHeight: chartH)
                     .padding(.horizontal)
-
-                if !deviceManager.dataHistory.points.isEmpty {
-                    ChartView(points: deviceManager.dataHistory.points)
-                        .padding(.horizontal)
-                } else {
-                    chartPlaceholder
-                        .padding(.horizontal)
-                }
-
-                Spacer(minLength: 20)
+            } else {
+                chartPlaceholder
+                    .padding(.horizontal)
             }
         }
     }
