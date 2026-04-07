@@ -38,7 +38,7 @@ struct ChartView: View {
                 let totalH = geo.size.height
                 let plotW = totalW - leftPad - rightPad
                 let plotH = totalH - bottomPad
-                let wMax = wattAxisMax
+                let wRange = wattAxisRange // (min, max)
 
                 ZStack(alignment: .topLeading) {
                     // Gap shading (gray regions where no data)
@@ -49,8 +49,8 @@ struct ChartView: View {
                     leadingGap(plotW: plotW, plotH: plotH)
                         .offset(x: leftPad)
 
-                    // Grid lines
-                    gridLines(plotW: plotW, plotH: plotH)
+                    // Grid lines + zero line
+                    gridLines(plotW: plotW, plotH: plotH, wMin: wRange.min, wMax: wRange.max)
                         .offset(x: leftPad)
 
                     // Data lines
@@ -62,19 +62,20 @@ struct ChartView: View {
 
                     segmentedLine(plotW: plotW, plotH: plotH,
                                   valueFor: { $0.solarWatts },
-                                  minVal: 0, maxVal: wMax,
+                                  minVal: wRange.min, maxVal: wRange.max,
                                   color: VTheme.solarColor, width: 1.5)
                         .offset(x: leftPad)
 
+                    // Battery: signed watts (negative = discharging)
                     segmentedLine(plotW: plotW, plotH: plotH,
-                                  valueFor: { $0.batteryWatts.map { abs($0) } },
-                                  minVal: 0, maxVal: wMax,
+                                  valueFor: { $0.batteryWatts },
+                                  minVal: wRange.min, maxVal: wRange.max,
                                   color: VTheme.red, width: 1.5)
                         .offset(x: leftPad)
 
                     segmentedLine(plotW: plotW, plotH: plotH,
                                   valueFor: { $0.consumerWatts },
-                                  minVal: 0, maxVal: wMax,
+                                  minVal: wRange.min, maxVal: wRange.max,
                                   color: VTheme.loadsColor, width: 1.5)
                         .offset(x: leftPad)
 
@@ -87,9 +88,9 @@ struct ChartView: View {
                         alignment: .trailing
                     )
 
-                    // Right Y-axis (Watts)
+                    // Right Y-axis (Watts, includes negative)
                     yAxisLabels(
-                        values: [formatAxisW(wMax), formatAxisW(wMax * 0.5), "0"],
+                        values: wAxisLabels(wRange),
                         color: VTheme.solarColor.opacity(0.6),
                         width: rightPad - 6,
                         height: plotH,
@@ -260,17 +261,31 @@ struct ChartView: View {
         return AnyView(EmptyView())
     }
 
-    // MARK: - Grid
+    // MARK: - Grid (with zero line when axis includes negatives)
 
-    private func gridLines(plotW: CGFloat, plotH: CGFloat) -> some View {
-        Path { path in
-            for frac in [0.25, 0.5, 0.75] {
-                let y = plotH * CGFloat(frac)
-                path.move(to: CGPoint(x: 0, y: y))
-                path.addLine(to: CGPoint(x: plotW, y: y))
+    private func gridLines(plotW: CGFloat, plotH: CGFloat, wMin: Double, wMax: Double) -> some View {
+        let range = wMax - wMin
+        return ZStack {
+            // Standard grid at 25/50/75%
+            Path { path in
+                for frac in [0.25, 0.5, 0.75] {
+                    let y = plotH * CGFloat(frac)
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: plotW, y: y))
+                }
+            }
+            .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
+
+            // Zero line (if axis spans negative to positive)
+            if wMin < 0 && range > 0 {
+                let zeroY = CGFloat((1 - (0 - wMin) / range)) * plotH
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: zeroY))
+                    path.addLine(to: CGPoint(x: plotW, y: zeroY))
+                }
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
             }
         }
-        .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
     }
 
     // MARK: - Y-axis helper
@@ -288,21 +303,46 @@ struct ChartView: View {
         .frame(width: width, height: height)
     }
 
-    // MARK: - Watt axis auto-scale
+    // MARK: - Watt axis auto-scale (includes negative for battery discharge)
 
-    private var wattAxisMax: Double {
-        let maxW = points.compactMap { p -> Double? in
-            [p.solarWatts, p.batteryWatts.map { abs($0) }, p.consumerWatts]
-                .compactMap { $0 }.max()
-        }.max() ?? 500
+    private var wattAxisRange: (min: Double, max: Double) {
+        var allMax: Double = 500
+        var allMin: Double = 0
 
-        let steps: [Double] = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000]
-        return steps.first { $0 >= maxW * 1.1 } ?? maxW * 1.2
+        for p in points {
+            let vals = [p.solarWatts, p.batteryWatts, p.consumerWatts].compactMap { $0 }
+            if let mx = vals.max() { allMax = max(allMax, mx) }
+            if let mn = vals.min() { allMin = min(allMin, mn) }
+        }
+
+        // Round to nice steps
+        let posSteps: [Double] = [50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000]
+        let negSteps: [Double] = [0, -50, -100, -200, -300, -500, -750, -1000, -1500, -2000, -3000]
+
+        let niceMax = posSteps.first { $0 >= allMax * 1.1 } ?? allMax * 1.2
+        let niceMin: Double
+        if allMin >= 0 {
+            niceMin = 0
+        } else {
+            niceMin = negSteps.last { $0 <= allMin * 1.1 } ?? allMin * 1.2
+        }
+
+        return (min: niceMin, max: niceMax)
+    }
+
+    private func wAxisLabels(_ range: (min: Double, max: Double)) -> [String] {
+        if range.min >= 0 {
+            return [formatAxisW(range.max), formatAxisW(range.max * 0.5), "0"]
+        }
+        // Has negative: show max, 0, min
+        let mid = formatAxisW((range.max + range.min) / 2)
+        return [formatAxisW(range.max), mid, formatAxisW(range.min)]
     }
 
     private func formatAxisW(_ w: Double) -> String {
-        if w >= 1000 { return "\(Int(w / 1000))kW" }
-        return "\(Int(w))W"
+        let v = Int(w)
+        if abs(w) >= 1000 { return "\(v / 1000)kW" }
+        return "\(v)W"
     }
 }
 

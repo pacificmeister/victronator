@@ -186,7 +186,7 @@ struct BatteryBox: View {
 
                 Text(soc != nil ? "\(Int(soc!))%" : "--%")
                     .font(.system(size: 38, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(VTheme.green)
 
                 Text(formatBatteryWatts(watts))
                     .font(.system(size: 38, weight: .bold, design: .rounded))
