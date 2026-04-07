@@ -8,37 +8,17 @@ struct StatusBannerView: View {
         HStack(spacing: 8) {
             statusIcon
             Text(statusText)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.system(size: 11))
+                .foregroundColor(VTheme.gray5)
             Spacer()
             if let time = deviceManager.lastUpdateTime {
-                Text("Updated \(timeAgo(time))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                Text(timeAgo(time))
+                    .font(.system(size: 10))
+                    .foregroundColor(VTheme.gray5.opacity(0.6))
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-    }
-
-    @ViewBuilder
-    private var statusIcon: some View {
-        switch deviceManager.scanner.bluetoothState {
-        case .poweredOn:
-            if deviceManager.scanner.isScanning {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .foregroundColor(.green)
-            } else {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .foregroundColor(.yellow)
-            }
-        case .poweredOff:
-            Image(systemName: "bluetooth")
-                .foregroundColor(.red)
-        default:
-            Image(systemName: "questionmark.circle")
-                .foregroundColor(.gray)
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
     }
 
     private func timeAgo(_ date: Date) -> String {
@@ -48,23 +28,39 @@ struct StatusBannerView: View {
         return "\(seconds / 60)m ago"
     }
 
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch deviceManager.scanner.bluetoothState {
+        case .poweredOn:
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .foregroundColor(deviceManager.scanner.isScanning ? VTheme.green : VTheme.orange)
+                .font(.system(size: 12))
+        case .poweredOff:
+            Image(systemName: "bluetooth")
+                .foregroundColor(VTheme.red)
+                .font(.system(size: 12))
+        default:
+            Image(systemName: "questionmark.circle")
+                .foregroundColor(VTheme.gray5)
+                .font(.system(size: 12))
+        }
+    }
+
     private var statusText: String {
         switch deviceManager.scanner.bluetoothState {
         case .poweredOn:
             let count = deviceManager.devices.count
-            if count == 0 {
-                return "Scanning for Victron devices..."
-            }
+            if count == 0 { return "Scanning..." }
             let configured = deviceManager.devices.values.filter(\.hasKey).count
-            return "\(count) device\(count == 1 ? "" : "s") found, \(configured) configured"
+            return "\(count) device\(count == 1 ? "" : "s"), \(configured) configured"
         case .poweredOff:
-            return "Bluetooth is off. Enable it in Settings."
+            return "Bluetooth off"
         case .unauthorized:
-            return "Bluetooth access denied. Check app permissions."
+            return "Bluetooth access denied"
         case .unsupported:
-            return "Bluetooth LE not supported on this device."
+            return "BLE not supported"
         default:
-            return "Initializing Bluetooth..."
+            return "Initializing..."
         }
     }
 }
