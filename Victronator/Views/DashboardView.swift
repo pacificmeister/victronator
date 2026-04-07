@@ -2,13 +2,8 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var deviceManager: DeviceManager
-    @Environment(\.horizontalSizeClass) var hSizeClass
-    @Environment(\.verticalSizeClass) var vSizeClass
 
-    /// Landscape on iPad: horizontal regular + vertical compact/regular in landscape
     private var isLandscape: Bool {
-        // On iPad in landscape, both size classes are regular but width > height
-        // Use UIScreen to detect actual orientation
         UIScreen.main.bounds.width > UIScreen.main.bounds.height
     }
 
@@ -28,14 +23,11 @@ struct DashboardView: View {
         .navigationViewStyle(.stack)
     }
 
-    // MARK: - Landscape: flow left, chart right
-
     private var landscapeLayout: some View {
-        HStack(spacing: 16) {
-            VStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(spacing: 8) {
                 StatusBannerView()
                 EnergyFlowView(metrics: deviceManager.metrics)
-                Spacer()
             }
             .frame(maxWidth: .infinity)
 
@@ -50,8 +42,6 @@ struct DashboardView: View {
         }
         .padding(12)
     }
-
-    // MARK: - Portrait: flow on top, chart below
 
     private var portraitLayout: some View {
         ScrollView {
@@ -82,19 +72,12 @@ struct DashboardView: View {
             Text("Recording data...")
                 .font(.system(size: 12))
                 .foregroundColor(VTheme.gray5.opacity(0.6))
-            Text("Chart will appear as history builds up")
-                .font(.system(size: 10))
-                .foregroundColor(VTheme.gray5.opacity(0.4))
         }
         .frame(height: 120)
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: VTheme.cornerRadius)
                 .fill(VTheme.widgetBG)
-                .overlay(
-                    RoundedRectangle(cornerRadius: VTheme.cornerRadius)
-                        .stroke(VTheme.blue.opacity(0.1), lineWidth: 1)
-                )
         )
     }
 }
