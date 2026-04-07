@@ -35,6 +35,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: "Victronator scans for Victron Energy device BLE advertisements to display solar and battery metrics."
         UIBackgroundModes:
           - bluetooth-central
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.victronator.app
